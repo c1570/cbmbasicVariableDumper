@@ -15,7 +15,8 @@ For further information visit:
 A memory dump of a C64 should contain at least the addresses $0000 to
 $9fff.  For example:
 
-```cbmbasicvardump.py memory.dump
+```
+cbmbasicvardump.py memory.dump
 ```
 
 This will try to read all the variables which where defined at the
@@ -26,7 +27,8 @@ momemt the dump was created.
 Vice (x64) must be running and the option "Enable remote monitor
 server" must be enabled. Then issueing a
 
-```cbmbasicvardump.py --connect localhost:6510
+```
+cbmbasicvardump.py --connect localhost:6510
 ```
 
 will create a dump in the temporary directory for your convenience
