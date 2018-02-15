@@ -32,5 +32,5 @@ cbmbasicvardump.py --connect localhost:6510
 ```
 
 will create a dump in the temporary directory for your convenience
-called "c64.<random>.dump" and immediately dump all variables.
+called "c64.XXXXXXX.dump" and immediately dump all variables.
 
