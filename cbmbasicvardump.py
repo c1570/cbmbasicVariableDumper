@@ -9,6 +9,7 @@ Further reading:
  * Jim Butterfield, Machine Language for the Commodore 64, 128, and Other Commodore Computers, Prentice Hall Press, 1986.
  * Dan Heeb, Compute!'s VIC20 and Commodore 64 Tool Kit: BASIC, Compute!, 1984.
  * Brückmann, et al, 64 Intern, 7. erweiterte Auflage, Data Becker, 1988.
+ * Lothar Englisch, The Advanced Machine Language Book for the Commodore 64, Abacus Software, 1984.
  * https://www.c64-wiki.com/wiki/Floating_point_arithmetic
 """
 
@@ -49,7 +50,9 @@ class IntegerVariable(Variable):
 class FloatVariable(Variable):
     """Floating point variable
 
-    See Compute!'s Toolkit p. 173.
+    See Compute!'s Toolkit p. 173. Other Information can be found in
+    L. Englisch's book on page 3.
+
     """
     def __init__(self, data, pos):
         "Constructor"
