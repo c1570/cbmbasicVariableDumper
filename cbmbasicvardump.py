@@ -73,7 +73,21 @@ class FloatVariable(Variable):
         return "%s = %E" % (self.name, self.value)
 
 class ArrayVariable(Variable):
-    "Array Variables"
+    """Array Variables
+
+    The following data is stored:
+
+     - Two bytes for name (same as for scalars).
+     - Total size (little endian uint16).
+     - Number of dimensions (uint8).
+     - Last dimension (big(!) endian uint16).
+     - First dimension (big(!) endian uint16).
+
+    The documentation in [Dan Heeb, Compute!`s VIC20 and Commodore 64
+    Tool Kit: BASIC, Compute!, 1984, p. 164] seems to be wrong, the
+    elements per dimension are stored in big-endian format!
+
+    """
     def __init__(self, data, pos):
         Variable.__init__(self, data, pos)
         ivarfun = self.data[pos] >= 0x80
@@ -87,10 +101,17 @@ class ArrayVariable(Variable):
         else:
             self.tchr = ''
         self.bytes = struct.unpack_from("<H", data, pos + 2)[0]
-        self.dim = struct.unpack_from("<H", data, pos + 4)[0]
-        self.nelems = [struct.unpack_from("<H", data, pos + 6 + 2*i)[0] for i in range(self.dim)]
+        self.dim = struct.unpack_from("B", data, pos + 4)[0]
+        #Number of elements per dimension from last to first.
+        self.nelems = [struct.unpack_from(">H", data, pos + 5 + 2*i)[0] for i in range(self.dim)]
     def __str__(self):
-        nelems = ','.join("%d" % i for i in self.nelems)
+        """Output as a string
+
+        We output the dimensions as they were given in the DIM
+        statement.
+
+        """
+        nelems = ','.join("%d" % (i - 1) for i in self.nelems)
         return "%s%s(%s) = %d bytes at $%04X..." % (self.name, self.tchr, nelems, self.bytes, self.pos)
 
 
