@@ -139,15 +139,19 @@ class BasicFunction(Variable):
     right. The first character has bit 7 set, in the second character
     of the variable name the second bit is cleared for functions.
 
+    The first uin16 (little endian) is a pointer to the definition in
+    the basic text.
+
     """
     def __init__(self, data, pos):
         "Constructor"
         Variable.__init__(self, data, pos)
     def __str__(self):
         "Convert to string for output."
-        out = "DEF FN %c%c @ $%04X =" % (self.data[self.pos] & 0x7f, self.data[self.pos + 1] & 0x7f, self.pos)
-        for i in range(2, 7):
-            out += " $%02x" % self.data[self.pos + i]
+        nam0, nam1, defptr, varptr, unknown = struct.unpack_from("<BBHHB", self.data, self.pos)
+        nam0 = chr(nam0 & 0x7f)
+        nam1 = chr(nam1 & 0x7f)
+        out = "DEF FN %c%c @ $%04X = DEF@$%04x VAR@$%04x $%02x" % (nam0, nam1, self.pos, defptr, varptr, unknown)
         return out
 
 
