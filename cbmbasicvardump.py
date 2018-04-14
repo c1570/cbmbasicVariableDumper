@@ -131,6 +131,26 @@ class StringVariable(Variable):
         return "%s%s$ = \"%s\"" % (self.name, where, self.value)
 
 
+class BasicFunction(Variable):
+    """A function as defined with DEF FN.
+
+    Figure 1.4.1 in the C64 Intern book seems to be wrong. Jim
+    Butterfield's "Machine Language for the Commodore 64" seems to be
+    right. The first character has bit 7 set, in the second character
+    of the variable name the second bit is cleared for functions.
+
+    """
+    def __init__(self, data, pos):
+        "Constructor"
+        Variable.__init__(self, data, pos)
+    def __str__(self):
+        "Convert to string for output."
+        out = "DEF FN %c%c @ $%04X =" % (self.data[self.pos] & 0x7f, self.data[self.pos + 1] & 0x7f, self.pos)
+        for i in range(2, 7):
+            out += " $%02x" % self.data[self.pos + i]
+        return out
+
+
 class Dump(object):
     """Helper class to handle dumps."""
     def __init__(self, data):
@@ -149,7 +169,7 @@ class Dump(object):
         if ivarfun and ivarstr:
             return IntegerVariable(self.data, pos)
         elif ivarfun:
-            raise NotImplementedError("function")
+            return BasicFunction(self.data, pos)
         elif ivarstr:
             return StringVariable(self.data, pos)
         else:
