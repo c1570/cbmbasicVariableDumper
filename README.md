@@ -6,7 +6,7 @@ monitor via a socket.
 
 For further information visit:
 
-	https://v2.pikacode.com/pararaum/cbmbasicVariableDumper
+	https://github.com/pararaum/cbmbasicVariableDumper
 
 # Usage
 
