@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """Dump all variables from a C64 memory dump. Or connect to the
@@ -29,7 +29,7 @@ class Variable(object):
         self.data = data
         self.pos = pos
         self.name = chr(data[pos] & 0x7f)
-        if data[pos + 1] != 0:
+        if data[pos + 1] & 0x7f != 0:
             self.name += chr(data[pos + 1] & 0x7f)
     def __str__(self):
         "Convert to string."
@@ -88,8 +88,9 @@ class ArrayVariable(Variable):
     elements per dimension are stored in big-endian format!
 
     """
-    def __init__(self, data, pos):
+    def __init__(self, data, pos, dump):
         Variable.__init__(self, data, pos)
+        self.dump = dump
         ivarfun = self.data[pos] >= 0x80
         ivarstr = self.data[pos + 1] >= 0x80
         if ivarfun and ivarstr:
@@ -112,12 +113,23 @@ class ArrayVariable(Variable):
 
         """
         nelems = ','.join("%d" % (i - 1) for i in self.nelems)
-        return "%s%s(%s) = %d bytes at $%04X..." % (self.name, self.tchr, nelems, self.bytes, self.pos)
+        res = "%s%s(%s) : %d bytes at $%04X" % (self.name, self.tchr, nelems, self.bytes, self.pos)
+        if self.tchr == '$':
+            strs = []
+            for i in range(0, int((self.bytes - 5 - 2*self.dim)/3)):
+                slen, spos = struct.unpack_from("<BH", self.data, self.pos + 5 + 2*self.dim + 3*i)
+                value = self.data[spos:spos + slen]
+                flag = "*" if spos >= self.dump.fretop else ""
+                if flag == "*":
+                    self.dump.mark_used(spos, spos + slen)
+                strs.append("\"%s\"%s" % (str(value, "ascii", errors="replace"), flag))
+            res = f"{res} = [{', '.join(strs)}]"
+        return res
 
 
 class StringVariable(Variable):
     "String variable"
-    def __init__(self, data, pos):
+    def __init__(self, data, pos, dump):
         "Constructor"
         Variable.__init__(self, data, pos)
         slen, spos = struct.unpack_from("<BH", data, pos +2)
@@ -125,10 +137,14 @@ class StringVariable(Variable):
         end = spos + slen
         self.pos = (begin, end)
         self.value = self.data[spos:spos + slen]
+        self.dump = dump
     def __str__(self):
         "Convert to string for output."
-        where = "[$%04X:$%04X]" % self.pos
-        return "%s%s$ = \"%s\"" % (self.name, where, self.value)
+        where = "[$%04X, %d]" % (self.pos[0], self.pos[1] - self.pos[0])
+        flag = "*" if self.pos[0] >= self.dump.fretop else ""
+        if flag == "*":
+            self.dump.mark_used(self.pos[0], self.pos[1])
+        return "%s$ %s = \"%s\"%s" % (self.name, where, str(self.value, "ascii", errors="replace"), flag)
 
 
 class BasicFunction(Variable):
@@ -163,6 +179,9 @@ class Dump(object):
         @param data: binary data of dump
         """
         self.data = data
+        self.used = bytearray(len(data))
+        self.txttab, self.vartab, self.arytab, self.strend, self.fretop, dummy, self.memsiz = struct.unpack_from("<HHHHHHH", data, 0x2b)
+
     def read_var(self, pos):
         """Read variable from memory
 
@@ -175,9 +194,29 @@ class Dump(object):
         elif ivarfun:
             return BasicFunction(self.data, pos)
         elif ivarstr:
-            return StringVariable(self.data, pos)
+            return StringVariable(self.data, pos, self)
         else:
             return FloatVariable(self.data, pos)
+
+    def mark_used(self, spos, epos):
+        for i in range(spos, epos):
+            self.used[i] = 1
+
+    def print_heap_garbage(self):
+        start = None
+        def print_garbage(start, end, data):
+            if start is None:
+                return
+            print("String Heap Garbage [$%04X:$%04X]: \"%s\"" % (start, end, str(data[start:end], "ascii", errors="replace")))
+        for i in range(self.fretop, self.memsiz):
+            if self.used[i] == 1:
+                if start is not None:
+                    print_garbage(start, i, self.data)
+                    start = None
+            else:
+                if start is None:
+                    start = i
+        print_garbage(start, self.memsiz, self.data)
 
 
 def parse_args():
@@ -237,20 +276,29 @@ def analyse_dump(fname):
     @param fname: file name to read dump from
     """
     print("Reading from '%s'." % fname)
-    dump = Dump(open(fname, "rb").read())
-    txttab, vartab, arytab, strend, fretop = struct.unpack_from("<HHHHH", dump.data, 0x2b)
-    print("Beginning of BASIC program is at $%04x." %  txttab)
-    print("Variables begin at $%04x." % vartab)
-    print("Array variable begin at $%04x." % arytab)
-    print("Top of string stack is $%04x." % fretop)
-    for i in range(vartab, arytab, 7):
+    data = open(fname, "rb").read()
+    if fname.lower().endswith(".prg"):
+        data = data[2:]
+    dump = Dump(data)
+    print("TXTTAB: Beginning of BASIC program is at $%04x." % dump.txttab)
+    print("VARTAB: Variables begin at $%04x." % dump.vartab)
+    print("ARYTAB: Array variables begin at $%04x." % dump.arytab)
+    print("STREND: Array variables end at $%04x." % dump.strend)
+    print("FRETOP: Top of string stack is at $%04x." % dump.fretop)
+    print("MEMSIZ: End of string stack is at $%04x." % dump.memsiz)
+    print()
+    print("Strings postfixed by a * reside in the string stack.")
+    print()
+    for i in range(dump.vartab, dump.arytab, 7):
         #    print (i, hex(i), data[i:i+8])
         print(dump.read_var(i))
-    pos = arytab
-    while pos < strend:
-        arr = ArrayVariable(dump.data, pos)
+    pos = dump.arytab
+    while pos < dump.strend:
+        arr = ArrayVariable(dump.data, pos, dump)
         print("%s" % arr)
         pos += arr.bytes
+    print()
+    dump.print_heap_garbage()
 
 
 def main(argp):

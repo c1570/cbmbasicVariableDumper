@@ -4,9 +4,14 @@ This tool dumps the current run-time variables of a basic program. It
 uses a memory dump for this purpose or it can connect to the vice
 monitor via a socket.
 
-For further information visit:
+https://github.com/c1570/cbmbasicVariableDumper is a fork of
+https://github.com/pararaum/cbmbasicVariableDumper .
 
-	https://github.com/pararaum/cbmbasicVariableDumper
+New features:
+* print strings in arrays
+* mark strings located in string stack with "*"
+* list string stack garbage (will be collected by Garbage Collection)
+* handle PRG memory dumps, too
 
 # Usage
 
